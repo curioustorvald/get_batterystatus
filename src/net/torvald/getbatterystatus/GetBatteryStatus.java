@@ -84,7 +84,7 @@ public class GetBatteryStatus {
         String lineRead;
         while ((lineRead = br1.readLine()) != null) {
             if (lineRead.startsWith("/org/freedesktop/UPower/devices/battery_BAT0") ||
-                    lineRead.startsWith("/org/freedesktop/UPower/devices/battery_macsms_battery")) {
+                    lineRead.startsWith("/org/freedesktop/UPower/devices/battery_macsmc_battery")) {
                 devBat = lineRead;
                 break;
             }
@@ -94,23 +94,23 @@ public class GetBatteryStatus {
 
         BufferedReader br2 = runCmdAndGetReader("upower -i "+devBat);
 
-        boolean lineFound = false;
+        String lineToParsePerc = null;
         boolean charging = false;
         while ((lineRead = br2.readLine()) != null) {
             // search for the line "    percentage:     00%" or "    percentage:     00.0000%"
-            if (lineRead.matches("(?<=percentage:)[\\t ]+[0-9]+(\\.[0-9]+)?(?=%)")) {
-                lineFound = true;
+            if (lineRead.matches("[ ]+percentage:[ ]+[0-9]+(\\.[0-9]+)?%")) {
+                lineToParsePerc = lineRead;
             }
             // search for the line "    state:   charging"
-            else if (lineRead.matches("(?<=[\\t ])charging")) {
+            else if (lineRead.matches("[ ]+state:[ ]+charging")) {
                 charging = true;
             }
         }
 
-        if (!lineFound) return nullStatus;
+        if (lineToParsePerc == null) return nullStatus;
 
         Pattern pat = Pattern.compile("(?<=[\\t ])[0-9]+(\\.[0-9]+)?(?=%)");
-        Matcher mat = pat.matcher(lineRead);
+        Matcher mat = pat.matcher(lineToParsePerc);
         if (mat.find()) {
             // get substring before '.'
             String percentageStr0 = mat.group();
