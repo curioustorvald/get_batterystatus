@@ -78,25 +78,27 @@ public class GetBatteryStatus {
         // check if battery is there
         // if the system has one, the output of `upower -e` should contain
         // `/org/freedesktop/UPower/devices/battery_BAT0`
+        // `/org/freedesktop/UPower/devices/battery_macsms_battery`
         BufferedReader br1 = runCmdAndGetReader("upower -e");
-        boolean hasBat = false;
+        String devBat = null;
         String lineRead;
         while ((lineRead = br1.readLine()) != null) {
-            if (lineRead.startsWith("/org/freedesktop/UPower/devices/battery_BAT0")) {
-                hasBat = true;
+            if (lineRead.startsWith("/org/freedesktop/UPower/devices/battery_BAT0") ||
+                    lineRead.startsWith("/org/freedesktop/UPower/devices/battery_macsms_battery")) {
+                devBat = lineRead;
                 break;
             }
         }
 
-        if (!hasBat) return nullStatus;
+        if (devBat == null) return nullStatus;
 
-        BufferedReader br2 = runCmdAndGetReader("upower -i /org/freedesktop/UPower/devices/battery_BAT0");
+        BufferedReader br2 = runCmdAndGetReader("upower -i "+devBat);
 
         boolean lineFound = false;
         boolean charging = false;
         while ((lineRead = br2.readLine()) != null) {
             // search for the line "    percentage:     00%" or "    percentage:     00.0000%"
-            if (lineRead.matches("(?<=capacity:)[\\t ]+[0-9]+(\\.[0-9]+)?(?=%)")) {
+            if (lineRead.matches("(?<=percentage:)[\\t ]+[0-9]+(\\.[0-9]+)?(?=%)")) {
                 lineFound = true;
             }
             // search for the line "    state:   charging"
@@ -122,7 +124,7 @@ public class GetBatteryStatus {
                 percentage = Integer.parseInt(percentageStr1);
             }
 
-            return new BatteryStatus(hasBat, charging, percentage);
+            return new BatteryStatus(true, charging, percentage);
         }
         else return nullStatus;
     }
