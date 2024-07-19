@@ -81,7 +81,7 @@ public class GetBatteryStatus {
         String devBat = null;
         String lineRead;
         while ((lineRead = br1.readLine()) != null) {
-            if (lineRead.matches("BAT[0-9]+") || lineRead.startsWith("macsms-battery")) {
+            if (lineRead.matches("BAT[0-9]+") || lineRead.startsWith("macsmc-battery")) {
                 devBat = lineRead;
                 break;
             }
