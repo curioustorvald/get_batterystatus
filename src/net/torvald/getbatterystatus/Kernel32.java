@@ -100,7 +100,7 @@ public interface Kernel32 extends StdCallLibrary {
             return new BatteryStatus(
                     BatteryFlag >= 0,
                     BatteryFlag == 8,
-                    BatteryLifePercent
+                    (BatteryLifePercent >= 0 && BatteryLifePercent <= 100) ? BatteryLifePercent : 0
             );
         }
     }
