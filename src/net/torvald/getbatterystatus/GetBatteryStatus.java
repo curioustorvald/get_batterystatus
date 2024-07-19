@@ -76,57 +76,40 @@ public class GetBatteryStatus {
 
     private static BatteryStatus getBattLinux() throws IOException {
         // check if battery is there
-        // if the system has one, the output of `upower -e` should contain
-        // `/org/freedesktop/UPower/devices/battery_BAT0`
-        // `/org/freedesktop/UPower/devices/battery_macsms_battery`
-        BufferedReader br1 = runCmdAndGetReader("upower -e");
+        // probe devices under '/sys/class/power_supply/*'
+        BufferedReader br1 = runCmdAndGetReader("ls /sys/class/power_supply/");
         String devBat = null;
         String lineRead;
         while ((lineRead = br1.readLine()) != null) {
-            if (lineRead.startsWith("/org/freedesktop/UPower/devices/battery_BAT0") ||
-                    lineRead.startsWith("/org/freedesktop/UPower/devices/battery_macsmc_battery")) {
+            if (lineRead.matches("BAT[0-9]+") || lineRead.startsWith("macsms-battery")) {
                 devBat = lineRead;
                 break;
             }
         }
 
-        if (devBat == null) return nullStatus;
+        if (devBat == null) return nullStatus; // no battery on the system
 
-        BufferedReader br2 = runCmdAndGetReader("upower -i "+devBat);
-
-        String lineToParsePerc = null;
-        boolean charging = false;
-        while ((lineRead = br2.readLine()) != null) {
-            // search for the line "    percentage:     00%" or "    percentage:     00.0000%"
-            if (lineRead.matches("[ ]+percentage:[ ]+[0-9]+(\\.[0-9]+)?%")) {
-                lineToParsePerc = lineRead;
-            }
-            // search for the line "    state:   charging"
-            else if (lineRead.matches("[ ]+state:[ ]+charging")) {
-                charging = true;
-            }
+        BufferedReader brCap = runCmdAndGetReader("cat /sys/class/power_supply/"+devBat+"/capacity");
+        lineRead = brCap.readLine();
+        int percentage;
+        try {
+            percentage = Math.round(Float.parseFloat(lineRead));
+        }
+        catch (NumberFormatException e) {
+            return nullStatus; // error
         }
 
-        if (lineToParsePerc == null) return nullStatus;
-
-        Pattern pat = Pattern.compile("(?<=[\\t ])[0-9]+(\\.[0-9]+)?(?=%)");
-        Matcher mat = pat.matcher(lineToParsePerc);
-        if (mat.find()) {
-            // get substring before '.'
-            String percentageStr0 = mat.group();
-            int dotIndex = percentageStr0.indexOf('.');
-            int percentage;
-            if (dotIndex < 0) {
-                percentage = Integer.parseInt(percentageStr0);
-            }
-            else {
-                String percentageStr1 = percentageStr0.substring(0, dotIndex);
-                percentage = Integer.parseInt(percentageStr1);
-            }
-
-            return new BatteryStatus(true, charging, percentage);
+        BufferedReader brStat = runCmdAndGetReader("cat /sys/class/power_supply/"+devBat+"/status");
+        lineRead = brStat.readLine();
+        boolean discharging;
+        try {
+            discharging = lineRead.toLowerCase().equals("discharging");
         }
-        else return nullStatus;
+        catch (NumberFormatException e) {
+            return nullStatus; // error
+        }
+
+        return new BatteryStatus(true, !discharging, percentage);
     }
 
 
